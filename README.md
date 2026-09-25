@@ -28,6 +28,17 @@ The application acts as an enterprise churn operating system. It ingests custome
 
 ## Architecture
 
+```mermaid
+graph TD
+    A[Real Bank Dataset] -->|load_real_data.py| B[(SQLite Production DB)]
+    C[live_data_simulator.py] -->|Injects live transactions & friction| B
+    B -->|Fetches Live State| D[app.py Streamlit Engine]
+    C -->|Recalculates Churn Risk| E[Random Forest ML Model]
+    E -->|Updates Risk %| B
+    D -->|High Risk Profiles| F[Gemini 2.0 AI Assistant]
+    F -->|Personalized Outreach Scripts| D
+```
+
 The project is structured into three main phases:
 - **Data Engineering:** Migrates data processing from static files to a resilient relational database setup.
 - **Predictive Analytics:** Processes user data and friction points (e.g., failed transactions) to output a dynamic churn risk probability.
