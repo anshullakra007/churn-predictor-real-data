@@ -7,54 +7,54 @@ import joblib
 import os
 from huggingface_hub import HfApi
 
-def generate_synthetic_data(num_samples=10000):
-    np.random.seed(42)
-    data = {
-        'CreditScore': np.random.randint(300, 850, size=num_samples),
-        'Geography': np.random.choice(['France', 'Spain', 'Germany'], size=num_samples),
-        'Gender': np.random.choice(['Male', 'Female'], size=num_samples),
-        'Age': np.random.randint(18, 92, size=num_samples),
-        'Tenure': np.random.randint(0, 11, size=num_samples),
-        'Balance': np.random.uniform(0, 250000, size=num_samples),
-        'NumOfProducts': np.random.randint(1, 5, size=num_samples),
-        'HasCrCard': np.random.randint(0, 2, size=num_samples),
-        'IsActiveMember': np.random.randint(0, 2, size=num_samples),
-        'EstimatedSalary': np.random.uniform(10.0, 200000.0, size=num_samples)
-    }
-    df = pd.DataFrame(data)
-    
-    # Simple probability model for churn
-    churn_prob = np.zeros(num_samples)
-    churn_prob += np.where(df['Geography'] == 'Germany', 0.1, 0)
-    churn_prob += np.where(df['Age'] > 45, 0.2, 0)
-    churn_prob += np.where(df['IsActiveMember'] == 0, 0.1, 0)
-    churn_prob += np.where(df['Balance'] > 100000, 0.05, 0)
-    
-    df['Exited'] = np.random.binomial(1, np.clip(churn_prob, 0, 1))
+from sqlalchemy import create_engine
+from dotenv import load_dotenv
 
-    # Inject the failed_transactions metric as requested
-    def generate_failed_tx(exited_status):
-        if exited_status == 1:
-            return np.random.poisson(lam=5.0)
+def fetch_crm_data():
+    load_dotenv()
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise ValueError("DATABASE_URL not found in environment.")
+    
+    print("Connecting to PostgreSQL to fetch CRM data...")
+    engine = create_engine(db_url)
+    
+    # Assuming 'customers' is the raw data table
+    query = 'SELECT * FROM customers'
+    df = pd.read_sql(query, engine)
+    
+    print("Cleaning data...")
+    # Drop duplicates
+    df = df.drop_duplicates()
+    
+    # Imputation for missing values
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            df[col] = df[col].fillna(df[col].mode()[0])
         else:
-            return np.random.poisson(lam=0.5)
-
-    df['failed_transactions_last_30_days'] = df['Exited'].apply(generate_failed_tx)
-
+            df[col] = df[col].fillna(df[col].median())
+            
     return df
 
 def train_and_save_model():
-    print("Generating synthetic data...")
-    df = generate_synthetic_data()
+    print("Fetching real data from database...")
+    df = fetch_crm_data()
     
     os.makedirs('../data', exist_ok=True)
-    df.to_csv('../data/synthetic_churn_data.csv', index=False)
+    df.to_csv('../data/real_churn_data.csv', index=False)
     
     print("Preparing data for training...")
     # Encode categorical
     df = pd.get_dummies(df, columns=['Geography', 'Gender'], drop_first=True)
     
-    X = df.drop('Exited', axis=1)
+    # Drop unnecessary columns if they exist (like 'RowNumber', 'CustomerId', 'Surname')
+    cols_to_drop = ['RowNumber', 'CustomerId', 'Surname', 'Exited']
+    X = df.drop([c for c in cols_to_drop if c in df.columns], axis=1)
+    
+    if 'Exited' not in df.columns:
+        print("Error: 'Exited' column not found in data.")
+        return
+        
     y = df['Exited']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)

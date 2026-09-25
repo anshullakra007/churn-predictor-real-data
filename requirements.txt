@@ -5,3 +5,6 @@ google-genai>=0.1.0
 scikit-learn==1.4.1.post1
 xlsxwriter==3.2.0
 statsmodels==0.14.1
+sqlalchemy
+psycopg2-binary
+python-dotenv
