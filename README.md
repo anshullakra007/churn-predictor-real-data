@@ -1,6 +1,8 @@
 # Churn Predictor on Real Data
 
-**Live Application:** [View Live App](https://churn-predictor-real-data.onrender.com)
+<div align="right">
+  <strong>Live Application:</strong> <a href="https://churn-predictor-real-data.onrender.com">View Live App</a>
+</div>
 
 This repository contains a full-stack financial technology application built for predicting and analyzing customer churn using real operational data. The system combines machine learning with an executive dashboard to provide actionable retention strategies.
 
